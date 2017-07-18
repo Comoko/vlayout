@@ -56,7 +56,7 @@ import java.util.Map;
 /**
  * A {@link android.support.v7.widget.RecyclerView.LayoutManager} implementation which provides
  * a virtual layout for actual views.
- *
+ * <p/>
  * NOTE: it will change {@link android.support.v7.widget.RecyclerView.RecycledViewPool}
  * for RecyclerView.
  *
@@ -115,7 +115,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     public VirtualLayoutManager(@NonNull final Context context, int orientation, boolean reverseLayout) {
         super(context, orientation, reverseLayout);
         this.mOrientationHelper = OrientationHelper.createOrientationHelper(this, orientation);
-        this.mSecondaryOrientationHelper = OrientationHelper.createOrientationHelper(this, orientation == VERTICAL ? HORIZONTAL : VERTICAL);
+        this.mSecondaryOrientationHelper = OrientationHelper.createOrientationHelper(this, orientation == VERTICAL ?
+                HORIZONTAL : VERTICAL);
         setHelperFinder(new RangeLayoutHelperFinder());
     }
 
@@ -414,7 +415,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
             if (lastChild != null) {
                 RecyclerView.LayoutParams params = (RecyclerView.LayoutParams) lastChild.getLayoutParams();
                 // found the end of last child view
-                mMeasuredFullSpace = getDecoratedBottom(lastChild) + params.bottomMargin + computeAlignOffset(lastChild, true, false);
+                mMeasuredFullSpace = getDecoratedBottom(lastChild) + params.bottomMargin + computeAlignOffset
+                        (lastChild, true, false);
 
                 if (mRecyclerView != null && mNestedScrolling) {
                     ViewParent parent = mRecyclerView.getParent();
@@ -525,8 +527,17 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
     private LayoutStateWrapper mTempLayoutStateWrapper = new LayoutStateWrapper();
 
+    /**
+     * 记录每个子布局消耗的长度
+     */
     private List<Pair<Range<Integer>, Integer>> mRangeLengths = new LinkedList<>();
 
+    /**
+     * 查找指定position内的子布局消耗的长度是否已经存在
+     *
+     * @param range 子布局范围
+     * @return 当前position范围已存储的下标<br/>{@code -1} 当前position范围内的消耗未存储
+     */
     @Nullable
     private int findRangeLength(@NonNull final Range<Integer> range) {
         final int count = mRangeLengths.size();
@@ -563,14 +574,25 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     }
 
 
+    /**
+     * 在需要布局时（一般为初始化显示或者滑动），RecyclerView会调用此方法进行布局
+     *
+     * @param recycler    View回收器
+     * @param state       RecyclerView当前状态（初始化、开始布局、开始动画）
+     * @param layoutState 布局状态
+     * @param result      布局结果
+     */
     @Override
-    protected void layoutChunk(RecyclerView.Recycler recycler, RecyclerView.State state, LayoutState layoutState, com.alibaba.android.vlayout.layout.LayoutChunkResult result) {
+    protected void layoutChunk(RecyclerView.Recycler recycler, RecyclerView.State state, LayoutState layoutState, com
+            .alibaba.android.vlayout.layout.LayoutChunkResult result) {
         final int position = layoutState.mCurrentPosition;
         mTempLayoutStateWrapper.mLayoutState = layoutState;
+        // 根据当前position获取对应的layoutHelper
         LayoutHelper layoutHelper = mHelperFinder == null ? null : mHelperFinder.getLayoutHelper(position);
         if (layoutHelper == null)
             layoutHelper = mDefaultLayoutHelper;
 
+        // 调用具体的LayoutHelper进行绘制
         layoutHelper.doLayout(recycler, state, mTempLayoutStateWrapper, result, this);
 
 
@@ -578,28 +600,34 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
 
         // no item consumed
+        // 没有子布局被消耗
         if (layoutState.mCurrentPosition == position) {
-            Log.w(TAG, "layoutHelper[" + layoutHelper.getClass().getSimpleName() + "@" + layoutHelper.toString() + "] consumes no item!");
+            Log.w(TAG, "layoutHelper[" + layoutHelper.getClass().getSimpleName() + "@" + layoutHelper.toString() + "]" +
+                    " consumes no item!");
             // break as no item consumed
             result.mFinished = true;
         } else {
             // Update height consumed in each layoutChunck pass
+            // 完成一次布局后，更新此次布局消耗的空白部分
             final int positionAfterLayout = layoutState.mCurrentPosition - layoutState.mItemDirection;
             final int consumed = result.mIgnoreConsumed ? 0 : result.mConsumed;
 
             // TODO: change when supporting reverseLayout
-            Range<Integer> range = new Range<>(Math.min(position, positionAfterLayout), Math.max(position, positionAfterLayout));
+            Range<Integer> range = new Range<>(Math.min(position, positionAfterLayout), Math.max(position,
+                    positionAfterLayout));
 
             final int idx = findRangeLength(range);
             if (idx >= 0) {
+                // 找到了就删除
                 Pair<Range<Integer>, Integer> pair = mRangeLengths.get(idx);
                 if (pair != null && pair.first.equals(range) && pair.second == consumed)
                     return;
 
                 mRangeLengths.remove(idx);
             }
-
+            // 将每次的界面空白部分的消耗记录下来
             mRangeLengths.add(Pair.create(range, consumed));
+            // 将存储的界面消耗数据按position进行排序，方便查找
             Collections.sort(mRangeLengths, new Comparator<Pair<Range<Integer>, Integer>>() {
                 @Override
                 public int compare(Pair<Range<Integer>, Integer> a, Pair<Range<Integer>, Integer> b) {
@@ -862,7 +890,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     }
 
 
-    @SuppressWarnings({"JavaDoc", "unused"})
+//    @SuppressWarnings({"JavaDoc", "unused"})
     public static class LayoutStateWrapper {
         public final static int LAYOUT_START = -1;
 
@@ -912,7 +940,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
 
         /**
-         * This {@link #layoutChunk(RecyclerView.Recycler, RecyclerView.State, LayoutState, com.alibaba.android.vlayout.layout.LayoutChunkResult)} pass is in layouting or scrolling
+         * This
+         * {@link #layoutChunk(RecyclerView.Recycler, RecyclerView.State, LayoutState, com.alibaba.android.vlayout.layout.LayoutChunkResult)} pass is in layouting or scrolling
          */
         public boolean isRefreshLayout() {
             return mLayoutState.mOnRefresLayout;
@@ -1038,7 +1067,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
         if (mRecyclerView == null) return null;
 
         View layoutView = mLayoutViewFatory.generateLayoutView(mRecyclerView.getContext());
-        LayoutParams params = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        LayoutParams params = new LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams
+                .WRAP_CONTENT);
         attachViewHolder(params, new LayoutViewHolder(layoutView));
 
         layoutView.setLayoutParams(params);
@@ -1059,7 +1089,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
     @Override
     public void addChildView(LayoutStateWrapper layoutState, View view) {
-        addChildView(layoutState, view, layoutState.getItemDirection() == LayoutStateWrapper.ITEM_DIRECTION_TAIL ? -1 : 0);
+        addChildView(layoutState, view, layoutState.getItemDirection() == LayoutStateWrapper.ITEM_DIRECTION_TAIL ? -1
+                : 0);
     }
 
 
@@ -1245,7 +1276,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
             RecyclerView.ViewHolder holder = getChildViewHolder(v);
             if (holder instanceof CacheViewHolder && ((CacheViewHolder) holder).needCached()) {
                 // mark not invalid, ignore DataSetChange(), make the ViewHolder itself to maitain the data
-                ViewHolderWrapper.setFlags(holder, 0, FLAG_INVALID |FLAG_UPDATED);
+                ViewHolderWrapper.setFlags(holder, 0, FLAG_INVALID | FLAG_UPDATED);
             }
         }
 
@@ -1415,7 +1446,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
                 int bottom = mMeasuredFullSpace;
                 if (lastChild != null) {
                     RecyclerView.LayoutParams params = (RecyclerView.LayoutParams) lastChild.getLayoutParams();
-                    bottom = getDecoratedBottom(lastChild) + params.bottomMargin + computeAlignOffset(lastChild, true, false);
+                    bottom = getDecoratedBottom(lastChild) + params.bottomMargin + computeAlignOffset(lastChild,
+                            true, false);
                 }
 
                 if (getChildCount() != getItemCount() || (lastChild != null && bottom != mMeasuredFullSpace)) {
@@ -1432,9 +1464,11 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
 
         if (getOrientation() == VERTICAL) {
-            super.onMeasure(recycler, state, widthSpec, View.MeasureSpec.makeMeasureSpec(measuredSize, View.MeasureSpec.AT_MOST));
+            super.onMeasure(recycler, state, widthSpec, View.MeasureSpec.makeMeasureSpec(measuredSize, View
+                    .MeasureSpec.AT_MOST));
         } else {
-            super.onMeasure(recycler, state, View.MeasureSpec.makeMeasureSpec(measuredSize, View.MeasureSpec.AT_MOST), heightSpec);
+            super.onMeasure(recycler, state, View.MeasureSpec.makeMeasureSpec(measuredSize, View.MeasureSpec.AT_MOST)
+                    , heightSpec);
         }
     }
 }
