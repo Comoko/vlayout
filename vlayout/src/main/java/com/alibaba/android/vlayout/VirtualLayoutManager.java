@@ -43,6 +43,7 @@ import com.alibaba.android.vlayout.layout.BaseLayoutHelper;
 import com.alibaba.android.vlayout.layout.DefaultLayoutHelper;
 import com.alibaba.android.vlayout.layout.FixAreaAdjuster;
 import com.alibaba.android.vlayout.layout.FixAreaLayoutHelper;
+import com.alibaba.android.vlayout.layout.LayoutChunkResult;
 
 import java.util.Collections;
 import java.util.Comparator;
@@ -56,7 +57,7 @@ import java.util.Map;
 /**
  * A {@link android.support.v7.widget.RecyclerView.LayoutManager} implementation which provides
  * a virtual layout for actual views.
- * <p/>
+ * <p>
  * NOTE: it will change {@link android.support.v7.widget.RecyclerView.RecycledViewPool}
  * for RecyclerView.
  *
@@ -121,6 +122,11 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     }
 
 
+    /**
+     * 提供给业务层的方法，当RecyclerView外层嵌套ScrollView时，可调用此方法将<code>mNoScrolling</code>设置为<code>true</code>
+     *
+     * @param noScrolling 是否不需要滑动
+     */
     public void setNoScrolling(boolean noScrolling) {
         this.mNoScrolling = noScrolling;
         mSpaceMeasured = false;
@@ -128,10 +134,21 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
         mSpaceMeasuring = false;
     }
 
+    /**
+     * 提供给业务层的方法,当需要嵌套滑动时，调用此方法将<code>mNestedScrolling</code>设置为 <code>true</code>
+     *
+     * @param nestedScrolling 是否需要嵌套滑动
+     */
     public void setNestedScrolling(boolean nestedScrolling) {
         setNestedScrolling(nestedScrolling, -1);
     }
 
+    /**
+     * 提供给业务层的方法,当需要嵌套滑动时，调用此方法将<code>mNestedScrolling</code>设置为 <code>true</code>
+     *
+     * @param nestedScrolling 是否需要嵌套滑动
+     * @param maxMeasureSize  未使用
+     */
     public void setNestedScrolling(boolean nestedScrolling, int maxMeasureSize) {
         this.mNestedScrolling = nestedScrolling;
         mSpaceMeasuring = mSpaceMeasured = false;
@@ -351,10 +368,19 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     private int mNested = 0;
 
 
+    /**
+     * DrawFlow3
+     * 遍历所有LayoutHelper，进行布局前的准备，
+     *
+     * @param recycler
+     * @param state
+     */
     private void runPreLayout(RecyclerView.Recycler recycler, RecyclerView.State state) {
 
         if (mNested == 0) {
             for (LayoutHelper layoutHelper : mHelperFinder.reverse()) {
+                // DrawFlow4
+                // 布局前准备工作：清理不可见背景、悬浮组件等
                 layoutHelper.beforeLayout(recycler, state, this);
             }
         }
@@ -381,6 +407,14 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     }
 
 
+    /**
+     * 开始布局子视图，完成布局开始前的准备工作及布局完成后的收尾工作
+     * 
+     * 实际的布局工作调用了{@link #layoutChunk(RecyclerView.Recycler, RecyclerView.State, LayoutState, com.alibaba.android.vlayout.layout.LayoutChunkResult)}完成
+     * 
+     * @param recycler
+     * @param state
+     */
     @Override
     public void onLayoutChildren(RecyclerView.Recycler recycler, RecyclerView.State state) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -391,11 +425,12 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
             mSpaceMeasured = false;
             mSpaceMeasuring = true;
         }
-
-
+        
+        // DrawFlow3 做布局之前的准备工作,
         runPreLayout(recycler, state);
 
         try {
+            // 父类里完成了item坐标的计算，然后调用了layoutChunk进行
             super.onLayoutChildren(recycler, state);
         } catch (Exception e) {
             e.printStackTrace();
@@ -406,6 +441,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
         }
 
 
+        // 处理嵌套滑动和不需滑动的特殊情况
         if ((mNestedScrolling || mNoScrolling) && mSpaceMeasuring) {
             // measure required, so do measure
             mSpaceMeasured = true;
@@ -575,6 +611,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
 
     /**
+     * DrawFlow2
      * 在需要布局时（一般为初始化显示或者滑动），RecyclerView会调用此方法进行布局
      *
      * @param recycler    View回收器
@@ -890,7 +927,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     }
 
 
-//    @SuppressWarnings({"JavaDoc", "unused"})
+    //    @SuppressWarnings({"JavaDoc", "unused"})
     public static class LayoutStateWrapper {
         public final static int LAYOUT_START = -1;
 
@@ -1390,6 +1427,12 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
         }
     }
 
+    /**
+     * 获取指定位置的 LayoutHelper
+     *
+     * @param position
+     * @return
+     */
     @Override
     public LayoutHelper findLayoutHelperByPosition(int position) {
         return mHelperFinder.getLayoutHelper(position);
@@ -1413,17 +1456,27 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     private boolean mSpaceMeasuring = false;
 
 
+    /**
+     * DrawFlow1
+     * 计算当前视图范围内的空白区域
+     * 测量完成之后会调用{@link #onLayoutChildren(RecyclerView.Recycler, RecyclerView.State)}开始item的布局工作
+     *
+     * @param recycler
+     * @param state
+     * @param widthSpec
+     * @param heightSpec
+     */
     @Override
     public void onMeasure(RecyclerView.Recycler recycler, RecyclerView.State state, int widthSpec, int heightSpec) {
         if (!mNoScrolling && !mNestedScrolling) {
-
+            // 执行RecyclerView的默认测量方法
             super.onMeasure(recycler, state, widthSpec, heightSpec);
             return;
         }
 
 
         int initialSize = MAX_NO_SCROLLING_SIZE;
-
+        // 存在嵌套滑动时的测量逻辑
         if (mRecyclerView != null && mNestedScrolling) {
             if (mMaxMeasureSize > 0) {
                 initialSize = mMaxMeasureSize;
@@ -1437,6 +1490,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
         int measuredSize = mSpaceMeasured ? mMeasuredFullSpace : initialSize;
 
+        // 不需要滑动时的测量逻辑
         if (mNoScrolling) {
             mSpaceMeasuring = !mSpaceMeasured;
 
