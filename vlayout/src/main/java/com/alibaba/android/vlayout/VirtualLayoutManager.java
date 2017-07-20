@@ -430,7 +430,17 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
         runPreLayout(recycler, state);
 
         try {
-            // 父类里完成了item坐标的计算，然后调用了layoutChunk进行
+            // DrawFlow 5-14
+            // 在这里面会执行LinearLayoutManager的默认布局逻辑,逐行进行绘制
+            // 填充ItemView的算法为：向父容器增加子控件，测量子控件大小，布局子控件，布局锚点向当前布局方向平移子控件大小，
+            // 重复上诉步骤至RecyclerView可绘制空间消耗完毕或子控件已全部填充
+            // layout algorithm:
+            // 1) by checking children and other variables, find an anchor coordinate and an anchor
+            //  item position.
+            // 2) fill towards start, stacking from bottom
+            // 3) fill towards end, stacking from top
+            // 4) scroll to fulfill requirements like stack from bottom.
+            // create layout state
             super.onLayoutChildren(recycler, state);
         } catch (Exception e) {
             e.printStackTrace();
@@ -622,14 +632,16 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     @Override
     protected void layoutChunk(RecyclerView.Recycler recycler, RecyclerView.State state, LayoutState layoutState, com
             .alibaba.android.vlayout.layout.LayoutChunkResult result) {
+        // DrawFlow6 
+        // 根据当前position获取对应的layoutHelper
         final int position = layoutState.mCurrentPosition;
         mTempLayoutStateWrapper.mLayoutState = layoutState;
-        // 根据当前position获取对应的layoutHelper
         LayoutHelper layoutHelper = mHelperFinder == null ? null : mHelperFinder.getLayoutHelper(position);
         if (layoutHelper == null)
             layoutHelper = mDefaultLayoutHelper;
 
-        // 调用具体的LayoutHelper进行绘制
+        // DrawFlow 7-11
+        // 调用具体的 LayoutHelper 进行绘制当前行，至此测量工作全部完成
         layoutHelper.doLayout(recycler, state, mTempLayoutStateWrapper, result, this);
 
 
@@ -1459,6 +1471,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
     /**
      * DrawFlow1
      * 计算当前视图范围内的空白区域
+     * 
+     * 由{@link RecyclerView#onMeasure(int, int)}调用，一次愉快的布局由此开始
      * 测量完成之后会调用{@link #onLayoutChildren(RecyclerView.Recycler, RecyclerView.State)}开始item的布局工作
      *
      * @param recycler
@@ -1466,10 +1480,10 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
      * @param widthSpec
      * @param heightSpec
      */
-    @Override
+//    @Override
     public void onMeasure(RecyclerView.Recycler recycler, RecyclerView.State state, int widthSpec, int heightSpec) {
         if (!mNoScrolling && !mNestedScrolling) {
-            // 执行RecyclerView的默认测量方法
+            // 执行RecyclerView默认的LayoutManager的测量方法
             super.onMeasure(recycler, state, widthSpec, heightSpec);
             return;
         }

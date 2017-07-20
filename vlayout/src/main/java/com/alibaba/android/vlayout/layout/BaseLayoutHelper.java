@@ -24,18 +24,17 @@
 
 package com.alibaba.android.vlayout.layout;
 
-import com.alibaba.android.vlayout.LayoutHelper;
-import com.alibaba.android.vlayout.LayoutManagerHelper;
-import com.alibaba.android.vlayout.R;
-import com.alibaba.android.vlayout.VirtualLayoutManager;
-import com.alibaba.android.vlayout.VirtualLayoutManager.LayoutStateWrapper;
-
 import android.graphics.Rect;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
 import android.view.View;
+
+import com.alibaba.android.vlayout.LayoutManagerHelper;
+import com.alibaba.android.vlayout.R;
+import com.alibaba.android.vlayout.VirtualLayoutManager;
+import com.alibaba.android.vlayout.VirtualLayoutManager.LayoutStateWrapper;
 
 /**
  * {@link com.alibaba.android.vlayout.LayoutHelper} that provides basic methods
@@ -263,6 +262,16 @@ public abstract class BaseLayoutHelper extends MarginLayoutHelper {
         return mBgColor != 0 || mLayoutViewBindListener != null;
     }
 
+    /**
+     * DrawFlow 8-11
+     * 实际完成布局的抽象方法，由具体的LayoutHelper实现
+     * 
+     * @param recycler
+     * @param state
+     * @param layoutState
+     * @param result
+     * @param helper
+     */
     public abstract void layoutViews(RecyclerView.Recycler recycler, RecyclerView.State state,
                                      LayoutStateWrapper layoutState, LayoutChunkResult result,
                                      LayoutManagerHelper helper);

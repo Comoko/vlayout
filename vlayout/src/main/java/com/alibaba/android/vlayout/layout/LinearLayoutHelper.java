@@ -83,12 +83,22 @@ public class LinearLayoutHelper extends BaseLayoutHelper {
         }
         int currentPosition = layoutState.getCurrentPosition();
 
+        
+        // DrawFlow8
+        // DrawFlow9
+        // 获取要布局的组件实例，组件的生成过程和RecyclerView原生一致，
+        // 即存在缓存就复用，缓存不存在时就调用adapter的onCreateViewHolder()方法生成一个
+        // 这里获取到的 view 就是最小粒度的可复用view
+        
         // find corresponding layout container
         View view = nextView(recycler, layoutState, helper, result);
         if (view == null) {
             return;
         }
 
+        // DrawFlow10 start
+        // 开始测量子view        
+        // 用于确认子view的布局位置
         VirtualLayoutManager.LayoutParams params = (VirtualLayoutManager.LayoutParams) view.getLayoutParams();
         final boolean layoutInVertical = helper.getOrientation() == VERTICAL;
 
@@ -174,8 +184,14 @@ public class LinearLayoutHelper extends BaseLayoutHelper {
                 right = left + orientationHelper.getDecoratedMeasurement(view);
             }
         }
+        // 子view计算结束
+        // DrawFlow10 end
+        
         // We calculate everything with View's bounding box (which includes decor and margins)
         // To calculate correct layout position, we subtract margins.
+        // DrawFlow11进行布局
+        // 所有的位置、大小等布局需要的参数在上面的步骤都已经计算完毕，
+        // 此处最终调用了RecyclerView的layoutDecorated方法，将这个view放在了计算好的位置上
         layoutChild(view, left, top, right, bottom, helper);
 
         if (DEBUG) {
@@ -184,6 +200,7 @@ public class LinearLayoutHelper extends BaseLayoutHelper {
                     + (right - params.rightMargin) + ", b:" + (bottom - params.bottomMargin));
         }
 
+        // 处理一次布局完成后的收尾工作
         handleStateOnResult(result, view);
     }
 
