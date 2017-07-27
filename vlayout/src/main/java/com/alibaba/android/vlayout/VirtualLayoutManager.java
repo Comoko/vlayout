@@ -379,8 +379,8 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
         if (mNested == 0) {
             for (LayoutHelper layoutHelper : mHelperFinder.reverse()) {
-                // DrawFlow4
-                // 布局前准备工作：清理不可见背景、悬浮组件等
+                // DrawFlow4 布局前准备:
+                // 不在范围之内的LayoutHelper可以做一些清理工作，比如将绑定过背景的LayoutHelper要清理背景
                 layoutHelper.beforeLayout(recycler, state, this);
             }
         }
@@ -431,9 +431,10 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
         try {
             // DrawFlow 5-14
-            // 在这里面会执行LinearLayoutManager的默认布局逻辑,逐行进行绘制
+            // 在这里面会执行LinearLayoutManager的默认布局逻辑, 逐行 进行绘制
             // 填充ItemView的算法为：向父容器增加子控件，测量子控件大小，布局子控件，布局锚点向当前布局方向平移子控件大小，
             // 重复上诉步骤至RecyclerView可绘制空间消耗完毕或子控件已全部填充
+            
             // layout algorithm:
             // 1) by checking children and other variables, find an anchor coordinate and an anchor
             //  item position.
@@ -621,7 +622,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
 
     /**
-     * DrawFlow2
+     * DrawFlow 6-11
      * 在需要布局时（一般为初始化显示或者滑动），RecyclerView会调用此方法进行布局
      *
      * @param recycler    View回收器
@@ -1469,10 +1470,10 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
 
 
     /**
-     * DrawFlow1
+     * DrawFlow 1-2 由RecyclerView完成
      * 计算当前视图范围内的空白区域
      * 
-     * 由{@link RecyclerView#onMeasure(int, int)}调用，一次愉快的布局由此开始
+     * 由{@link RecyclerView#onMeasure(int, int)}调用，一次布局由此开始
      * 测量完成之后会调用{@link #onLayoutChildren(RecyclerView.Recycler, RecyclerView.State)}开始item的布局工作
      *
      * @param recycler
@@ -1480,7 +1481,7 @@ public class VirtualLayoutManager extends ExposeLinearLayoutManagerEx implements
      * @param widthSpec
      * @param heightSpec
      */
-//    @Override
+    @Override
     public void onMeasure(RecyclerView.Recycler recycler, RecyclerView.State state, int widthSpec, int heightSpec) {
         if (!mNoScrolling && !mNestedScrolling) {
             // 执行RecyclerView默认的LayoutManager的测量方法

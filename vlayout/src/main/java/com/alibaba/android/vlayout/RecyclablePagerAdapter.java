@@ -33,12 +33,15 @@ import android.view.ViewGroup;
 import com.alibaba.android.vlayout.extend.InnerRecycledViewPool;
 
 /**
+ * 可复用视图的 ViewPager 的适配器
+ * 
  * PagerAdapter which use RecycledPool, used for nested ViewPager.
  */
 public abstract class RecyclablePagerAdapter<VH extends RecyclerView.ViewHolder> extends PagerAdapter {
 
     private RecyclerView.Adapter<VH> mAdapter;
 
+    // View 回收池
     private InnerRecycledViewPool mRecycledViewPool;
 
 
@@ -69,9 +72,11 @@ public abstract class RecyclablePagerAdapter<VH extends RecyclerView.ViewHolder>
     @Override
     public Object instantiateItem(ViewGroup container, int position) {
         int itemViewType = getItemViewType(position);
+        // 先根据itemViewType去回收池里找
         RecyclerView.ViewHolder holder = mRecycledViewPool.getRecycledView(itemViewType);
 
         if (holder == null) {
+            // 没有则初始化一个
             holder = mAdapter.createViewHolder(container, itemViewType);
         }
 
@@ -91,6 +96,7 @@ public abstract class RecyclablePagerAdapter<VH extends RecyclerView.ViewHolder>
         if (object instanceof RecyclerView.ViewHolder) {
             RecyclerView.ViewHolder holder = (RecyclerView.ViewHolder) object;
             container.removeView(holder.itemView);
+            // 销毁时将view放入回收池
             mRecycledViewPool.putRecycledView(holder);
         }
     }

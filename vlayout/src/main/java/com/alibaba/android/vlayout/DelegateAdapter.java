@@ -44,6 +44,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static android.support.v7.widget.RecyclerView.NO_ID;
 
 /**
+ * vlayout 提供的一个默认的代理适配器，管理了一个子适配器列表，子适配器必须继承自{@link Adapter}，具体的操作由子adapter完成
+ * 一般来说用这个就够了
+ * <p>
  * Adapter delegates its responsibility to sub adapters
  *
  * @author villadora
@@ -51,20 +54,42 @@ import static android.support.v7.widget.RecyclerView.NO_ID;
  */
 public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolder> {
 
+    /**
+     * 子adapter计数器，线程不安全时使用
+     */
     @Nullable
     private AtomicInteger mIndexGen;
-
+    /**
+     * 子adapter计数器，线程安全时使用
+     */
     private int mIndex = 0;
 
+    /**
+     * 是否存在 同一个ItemType 对应不同的item
+     * 为{@code true}时表示可通过ItemType区分不同的item
+     * 为{@code false}时表示需通过ItemType 和子 adapter的unique id来共同区分，此时的真实itemType是由itemType和unique id通过康托尔配对函数计算出来的
+     */
     private final boolean mHasConsistItemType;
 
+    /**
+     * 子适配器容器, 当 {@link #mHasConsistItemType} 为 {@code true} 时通过此容器获得adapter
+     * key(int):itemType
+     * value({@link Adapter}):adapter
+     */
     private SparseArray<Adapter> mItemTypeAry = new SparseArray<>();
 
     @NonNull
     private final List<Pair<AdapterDataObserver, Adapter>> mAdapters = new ArrayList<>();
 
+    /**
+     * 子item总数
+     */
     private int mTotal = 0;
 
+    /**
+     * key(int):adapter 的下标<br>
+     * value(Pair<AdapterDataObserver, Adapter>): <数据观察者,对应的子Adapter> 键值对
+     */
     private final SparseArray<Pair<AdapterDataObserver, Adapter>> mIndexAry = new SparseArray<>();
 
     /**
@@ -99,19 +124,27 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
 
+    /**
+     * 回调方法，创建ViewHolder
+     *
+     * @param parent
+     * @param viewType
+     * @return
+     */
     @Override
     public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
 
         if (mHasConsistItemType) {
+            // 通过viewType拿到对应的子adapter
             Adapter adapter = mItemTypeAry.get(viewType);
             if (adapter != null) {
-                 return adapter.onCreateViewHolder(parent, viewType);
+                return adapter.onCreateViewHolder(parent, viewType);
             }
 
             return null;
         }
 
-
+        // 反向 康托尔配对函数，从viewType中算出子adapter的position和正确的viewType
         // reverse Cantor Function
         int w = (int) (Math.floor(Math.sqrt(8 * viewType + 1) - 1) / 2);
         int t = (w * w + w) / 2;
@@ -119,7 +152,7 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         int index = viewType - t;
         int subItemType = w - index;
 
-        Adapter adapter  = findAdapterByIndex(index);
+        Adapter adapter = findAdapterByIndex(index);
         if (adapter == null) {
             return null;
         }
@@ -145,6 +178,8 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
     /**
+     * 返回指定 position 的 itemViewType
+     * <p>
      * Big integer of itemType returned by delegated adapter may lead to failed
      *
      * @param position item position
@@ -254,6 +289,11 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
 
+    /**
+     * 设置 子Adapter 列表，所有adapter的移除、新增等操作，最后都会调用这个方法
+     *
+     * @param adapters
+     */
     public void setAdapters(@Nullable List<Adapter> adapters) {
         clear();
 
@@ -261,15 +301,20 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
             adapters = Collections.emptyList();
         }
 
+        // 初始化LayoutHelper列表
         List<LayoutHelper> helpers = new LinkedList<>();
 
         boolean hasStableIds = true;
         mTotal = 0;
 
+        // 遍历adapter，完成以下初始化工作
+        // 1、创建对应的LayoutHelper列表，并将其委托给VirtualLayoutManager
+        // 2、完成对每一个adapter的观察者对象的创建，用于后期更新数据
         Pair<AdapterDataObserver, Adapter> pair;
         for (Adapter adapter : adapters) {
             // every adapter has an unique index id
-            AdapterDataObserver observer = new AdapterDataObserver(mTotal, mIndexGen == null ? mIndex++ : mIndexGen.incrementAndGet());
+            AdapterDataObserver observer = new AdapterDataObserver(mTotal, mIndexGen == null ? mIndex++ : mIndexGen
+                    .incrementAndGet());
             adapter.registerAdapterDataObserver(observer);
             hasStableIds = hasStableIds && adapter.hasStableIds();
             LayoutHelper helper = adapter.onCreateLayoutHelper();
@@ -289,6 +334,8 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
     /**
+     * 在指定位置添加Adapter
+     * <p>
      * Add adapters in <code>position</code>
      *
      * @param position the index where adapters added
@@ -321,6 +368,8 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
     /**
+     * 在列表的最后增加adapter
+     * 
      * Append adapters to the end
      *
      * @param adapters adapters will be appended
@@ -329,14 +378,28 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         addAdapters(mAdapters.size(), adapters);
     }
 
+    /**
+     * 在指定位置增加adapter
+     * 
+     * @param position
+     * @param adapter
+     */
     public void addAdapter(int position, @Nullable Adapter adapter) {
         addAdapters(position, Collections.singletonList(adapter));
     }
 
+    /**
+     * 在最后增加一个adapter 
+     * 
+     * @param adapter
+     */
     public void addAdapter(@Nullable Adapter adapter) {
         addAdapters(Collections.singletonList(adapter));
     }
 
+    /**
+     * 移除第一个adapter
+     */
     public void removeFirstAdapter() {
         if (mAdapters != null && !mAdapters.isEmpty()) {
             Adapter targetAdatper = mAdapters.get(0).second;
@@ -344,6 +407,9 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         }
     }
 
+    /**
+     * 移除最后一个adapter
+     */
     public void removeLastAdapter() {
         if (mAdapters != null && !mAdapters.isEmpty()) {
             Adapter targetAdatper = mAdapters.get(mAdapters.size() - 1).second;
@@ -351,6 +417,11 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         }
     }
 
+    /**
+     * 移除指定位置adapter
+     *
+     * @param adapterIndex
+     */
     public void removeAdapter(int adapterIndex) {
         if (adapterIndex >= 0 && adapterIndex < mAdapters.size()) {
             Adapter targetAdatper = mAdapters.get(adapterIndex).second;
@@ -358,6 +429,11 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         }
     }
 
+    /**
+     * 移除指定adapter
+     *
+     * @param targetAdapter
+     */
     public void removeAdapter(@Nullable Adapter targetAdapter) {
         if (targetAdapter == null) {
             return;
@@ -365,6 +441,11 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         removeAdapters(Collections.singletonList(targetAdapter));
     }
 
+    /**
+     * 移除指定子adapter列表
+     *
+     * @param targetAdapters
+     */
     public void removeAdapters(@Nullable List<Adapter> targetAdapters) {
         if (targetAdapters == null || targetAdapters.isEmpty()) {
             return;
@@ -396,6 +477,9 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         setAdapters(newAdapter);
     }
 
+    /**
+     * 清空当前所有代理的adapter
+     */
     public void clear() {
         mTotal = 0;
         mIndex = 0;
@@ -415,6 +499,12 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
 
+    /**
+     * 获取指定 position 的<观察者，适配器键值对>
+     *
+     * @param position
+     * @return
+     */
     @Nullable
     public Pair<AdapterDataObserver, Adapter> findAdapterByPosition(int position) {
         final int count = mAdapters.size();
@@ -456,6 +546,9 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
         return rs.second;
     }
 
+    /**
+     * 数据观察者
+     */
     protected class AdapterDataObserver extends RecyclerView.AdapterDataObserver {
         int mStartPosition;
 
@@ -471,7 +564,7 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
             this.mIndex = index;
         }
 
-        private boolean updateLayoutHelper(){
+        private boolean updateLayoutHelper() {
             if (mIndex < 0) {
                 return false;
             }
@@ -562,7 +655,8 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
      * @param layoutHelper layoutHelper that adapter used
      * @return adapter
      */
-    public static Adapter<? extends RecyclerView.ViewHolder> simpleAdapter(@NonNull View view, @NonNull LayoutHelper layoutHelper) {
+    public static Adapter<? extends RecyclerView.ViewHolder> simpleAdapter(@NonNull View view, @NonNull LayoutHelper
+            layoutHelper) {
         return new SimpleViewAdapter(view, layoutHelper);
     }
 
@@ -611,6 +705,11 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
 
+    /**
+     * 供 DelegateAdapter 使用的子Adapter抽象类，额外提供了onCreateLayoutHelper方法，用于创建当前子Adapter的布局类型
+     *
+     * @param <VH>
+     */
     public static abstract class Adapter<VH extends RecyclerView.ViewHolder> extends RecyclerView.Adapter<VH> {
         public abstract LayoutHelper onCreateLayoutHelper();
 
@@ -620,6 +719,13 @@ public class DelegateAdapter extends VirtualLayoutAdapter<RecyclerView.ViewHolde
     }
 
 
+    /**
+     * 康托配对函数：完成 两个整型值 到 一个整型值 的可逆映射
+     *
+     * @param k1
+     * @param k2
+     * @return
+     */
     private static long getCantor(long k1, long k2) {
         return (k1 + k2) * (k1 + k2 + 1) / 2 + k2;
     }

@@ -35,7 +35,7 @@ import java.util.List;
 import java.util.ListIterator;
 
 /**
-  An implement of {@link LayoutHelperFinder} which finds layoutHelpers by position
+ * An implement of {@link LayoutHelperFinder} which finds layoutHelpers by position
  */
 public class RangeLayoutHelperFinder extends LayoutHelperFinder {
 
@@ -89,6 +89,8 @@ public class RangeLayoutHelperFinder extends LayoutHelperFinder {
     }
 
     /**
+     * 设置LayoutHelper列表，并对其按照position排序
+     * 
      * @param layouts layoutHelpers that handled
      */
     @Override
@@ -142,6 +144,9 @@ public class RangeLayoutHelperFinder extends LayoutHelperFinder {
     }
 
 
+    /**
+     * 提供了返回 layoutHelper 起始position和 终止position的 方法，方便进行查找
+     */
     static class LayoutHelperItem {
 
         LayoutHelperItem(LayoutHelper helper) {
